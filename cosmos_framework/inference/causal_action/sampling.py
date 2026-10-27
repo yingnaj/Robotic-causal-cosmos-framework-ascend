@@ -1,11 +1,14 @@
 # SPDX-License-Identifier: OpenMDW-1.1
 """Offline three-task causal sampling; shared by CLI and online callbacks."""
 
+import copy
+
 import torch
 
 from cosmos_framework.data.generator.action.block_state import prediction_block_span
 from cosmos_framework.data.generator.sequence_packing.causal_action import CausalActionGeometry, expand_action_sequence
 from cosmos_framework.model.generator.diffusion.samplers.fixed_step import FixedStepSampler
+from cosmos_framework.model.generator.diffusion.samplers.unipc import UniPCSampler
 from cosmos_framework.model.generator.mot.causal_action_cache import action_attention_cache
 
 
@@ -75,6 +78,10 @@ def sample_prepared(
         raise ValueError("Inference block size must match delta statistics and pre-packing geometry")
     options_batch = data_batch or {}
     preview = options_batch.get("causal_action_preview", False)
+    return_trace = options_batch.get("causal_action_return_trace", False)
+    if return_trace and (preview or not has_noisy_actions or not isinstance(selected, UniPCSampler)):
+        raise ValueError("Sampling traces require non-preview action generation with native UniPC")
+    sampling_trace = None
     current_block = int(options_batch.get("causal_action_current_block", 0))
     if not 0 <= current_block < len(metadata.states):
         raise ValueError("Requested block has no measured state")
@@ -99,9 +106,7 @@ def sample_prepared(
                 raise ValueError("History must be explicitly supplied as observed video")
         history_v.mul_(packed.vision.condition_mask[0].to(history_v.device))
         history_a.mul_(packed.action.condition_mask[0].to(history_a.device))
-        templates[name] = expand_action_sequence(
-            packed, [history_v.to(model.precision)], geometry
-        )
+        templates[name] = expand_action_sequence(packed, [history_v.to(model.precision)], geometry)
         templates[name].to_cuda()
     af = metadata.action_frame_ids.to(state.device)
     target_net = net or model.net
@@ -164,12 +169,38 @@ def sample_prepared(
                 options.update(condition_reference=[frozen], condition_mask=[(~active).float()])
             sampled = selected(velocity_fn, [state], **options)[0]
             state = torch.where(active, sampled, frozen)
+            if return_trace:
+                # Capture before history is advanced. This is a sampling record only;
+                # training objectives and probe construction live outside inference.
+                sampling_trace = dict(
+                    branches=copy.deepcopy(templates),
+                    endpoint_vision=state[:nv].reshape(vshape).clone(),
+                    endpoint_action=state[nv:].reshape(ashape).clone(),
+                    vision_mask=active[:nv].reshape(vshape).clone(),
+                    action_mask=active[nv:].reshape(ashape).clone(),
+                    current_block=b,
+                    guidance=float(guidance),
+                    guidance_interval=None if guidance_interval is None else tuple(guidance_interval),
+                    normalize_cfg=bool(normalize_cfg),
+                    timestep_scale=float(selected.cfg.num_train_timesteps),
+                    num_steps=num_steps,
+                    shift=shift,
+                )
             history_v[:, :, start:end] = state[:nv].reshape(vshape)[:, :, start:end]
             if has_noisy_actions:
                 history_a[am[:, 0]] = state[nv:].reshape(ashape)[am[:, 0]]
-    return {
-        "vision": [history_v if preview else history_v[:, :, : min(t, prediction_block_span(current_block, causal_block_size)[1])]],
+    result = {
+        "vision": [
+            history_v
+            if preview
+            else history_v[:, :, : min(t, prediction_block_span(current_block, causal_block_size)[1])]
+        ],
         "action": [history_a.masked_fill(~valid_action, 0)],
         "generated_action_mask": [generated_action_mask],
         "preview_semantics": "真值 state 条件预览" if preview else "当前块生成，等待完整执行反馈",
     }
+    if return_trace:
+        if sampling_trace is None:
+            raise ValueError("Sampling trace requires an active action block")
+        result["sampling_trace"] = sampling_trace
+    return result

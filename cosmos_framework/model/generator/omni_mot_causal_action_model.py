@@ -174,6 +174,22 @@ class OmniMoTCausalActionModel(OmniMoTModel):
             teacher_forcing_geometry,
         )
 
+    def sample_fpo_rollout(self, data_batch, *, policy_version, seed, **sampling_options):
+        """Return native samples and a detached, replayable single-block FPO record."""
+        from cosmos_framework.model.generator.algorithm.rl.causal_fpo import sample_causal_fpo_rollout
+
+        return sample_causal_fpo_rollout(self, data_batch, policy_version=policy_version, seed=seed, **sampling_options)
+
+    def fpo_training_step(self, examples, advantages, *, config=None, net=None):
+        """Return (metrics, loss); the caller owns backward and optimizer steps."""
+        from cosmos_framework.model.generator.algorithm.rl.causal_fpo import causal_fpo_loss
+        from cosmos_framework.model.generator.algorithm.rl.fpo import FPOConfig
+
+        loss, metrics = causal_fpo_loss(
+            self, examples, advantages, config=FPOConfig() if config is None else config, net=net
+        )
+        return metrics, loss
+
     def _generate_causal_inference_from_prepared(self, **kwargs):
         from cosmos_framework.inference.causal_action.sampling import sample_prepared
 

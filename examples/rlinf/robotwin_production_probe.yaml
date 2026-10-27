@@ -1,0 +1,33 @@
+# Infrastructure checks only; this is not an online FPO training recipe.
+cluster:
+  num_nodes: 2
+  component_placement:
+    env:
+      node_group: sim
+      placement: "0"
+    actor:
+      node_group: ascend
+      placement: "0-1"
+    rollout:
+      node_group: ascend
+      placement: "0-1"
+  node_groups:
+    - label: sim
+      node_ranks: 0
+      env_configs:
+        - node_ranks: 0
+          python_interpreter_path: /opt/rlprod/RLinf/.venv-sim/bin/python
+          env_vars:
+            - PYTHONPATH: /opt/rlprod/RLinf:/opt/rlprod/Cosmos:/opt/rlprod/RoboTwin
+    - label: ascend
+      node_ranks: 1
+      env_configs:
+        - node_ranks: 1
+          python_interpreter_path: /root/miniconda3/envs/cosmos3-rlinf-ascend/bin/python
+          env_vars:
+            - PYTHONPATH: /opt/rlprod/RLinf:/opt/rlprod/Cosmos
+            - COSMOS_FRAMEWORK_PATH: /opt/rlprod/Cosmos
+probe:
+  sim_device: 0
+  npu_start: 0
+  npu_end: 1
