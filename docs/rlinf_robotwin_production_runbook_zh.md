@@ -8,6 +8,8 @@
 
 具体执行命令见 [迁移后的首轮验证步骤](rlinf_production_validation_steps_zh.md:1)。GPU 节点已具备 RoboTwin 依赖，直接复用；新提供环境 probe、RLinf 跨节点 transport 和 NPU FSDP2 probe，尚待生产机实际运行。
 
+> 2026-10-28：下文是首轮基础设施验证前的历史审查。相机/history、实测反馈、collector 和专用入口现已补入，最新配置与执行命令见 [在线 FPO 实现与验收](rlinf_online_fpo_implementation_zh.md)；本轮尚未完成新路径的生产 GPU/NPU 验收。
+
 ## 当前迁移就绪检查（动作适配完成后）
 
 本次重新检查了两仓库当前代码、adapter 调用位置、配置与启动文件是否存在，以及本机验证脚本的路径/设备/Ray 设置。本次是静态就绪检查，没有访问生产节点或重复启动模型训练；上一轮 56 项 CPU 测试结果见 [适配验证](robotwin_adapter_and_branch_audit_zh.md:90)。

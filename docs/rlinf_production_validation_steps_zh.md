@@ -165,4 +165,4 @@ RAY_ADDRESS=auto python tools/validate_rlinf_cluster.py \
 
 下一阶段才是：正式/工程 checkpoint 的真实 Cosmos 固定 replay 更新 → 冻结策略驱动 RoboTwin → 两轮在线 FPO 更新及恢复。当前真实模型验证仍依赖本机 `outputs/.../validate_actor.py` 的特定路径和 compatibility reader，尚未整理为本文件新 probe 的阶段；不要将其直接当作上述生产 Ray 集群的入口。
 
-causal 相机/history builder、实测反馈、collector 和训练入口的缺口仍在。待这些代码完成后，再提供对应的真实模型/闭环启动命令；不执行目前尚不存在的 `train_causal_fpo.py`。
+2026-10-28 已新增完整块 causal batch builder、实测反馈、专用 rollout/collector、Runner 与 `train_causal_fpo.py`；实现、配置、冻结策略、两轮更新和恢复命令见 [在线 FPO 实现与验收](rlinf_online_fpo_implementation_zh.md)。这些新路径尚未进行生产 GPU/NPU 闭环验收；本文件的基础设施通过结果不能替代该验收。
