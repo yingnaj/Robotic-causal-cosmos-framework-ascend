@@ -45,8 +45,8 @@ class ObservedCausalBatchBuilder:
             video_stride=video_stride,
             temporal_compression_factor=temporal_compression_factor,
         )
-        if history_blocks < 1:
-            raise ValueError("history_blocks must be positive")
+        if type(history_blocks) is not int or history_blocks < 1:
+            raise ValueError("history_blocks must be a positive integer")
         self.history_blocks, self.resolution, self.fps = history_blocks, resolution, self.geometry.action_fps(fps)
         self.views = VideoViewConfig(
             cameras=cameras or {"head": "head_camera", "left": "left_camera", "right": "right_camera"}
@@ -88,9 +88,10 @@ class ObservedCausalBatchBuilder:
             ),
             self.resolution,
         )
-        state = self.template.sanitize(torch.as_tensor(state).float().cpu(), self.state_mask)
-        if state.shape != (self.template.width,):
-            raise ValueError("Expected one measured template anchor")
+        state = torch.as_tensor(state).detach().float().cpu()
+        if state.shape != (self.template.width,) or not torch.isfinite(state[self.state_mask]).all():
+            raise ValueError("Expected one finite measured template anchor")
+        state = self.template.sanitize(state, self.state_mask)
         anchors = torch.zeros(current + 1, self.template.width)
         anchors[current] = state
         sm = torch.zeros_like(anchors, dtype=torch.bool)

@@ -2,6 +2,8 @@
 
 更新：2026-10-28。本文接续 `RLINF_CAUSAL_COSMOS3_RL_INTEGRATION_PLAN.md`、`causal_cosmos3_robotwin_rl_plan.md`、`robotwin_adapter_and_branch_audit_zh.md` 和 `rlinf_robotwin_production_runbook_zh.md`。基础设施 probe 已由用户在生产环境验证；本文新增实现尚未进行生产 GPU/NPU 闭环验收。
 
+2026-10-29：已扩展独立 Env 请求队列，支持八 GPU 环境与八 NPU Actor/Rollout；正式配置、资源含义及启动恢复命令见 [八环境训练说明](rlinf_8gpu_8npu_training_zh.md)。下文保留单环境、双 Rollout 的初始验收配置。
+
 ## 已实现的执行链
 
 ```text
